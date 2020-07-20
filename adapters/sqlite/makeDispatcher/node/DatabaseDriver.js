@@ -72,7 +72,7 @@ function getPath(dbName) {
     return dbName;
   }
 
-  var path = dbName.startsWith('/') && dbName.startsWith('file:') ? dbName : "".concat(process.cwd(), "/").concat(dbName);
+  var path = dbName.startsWith('/') || dbName.startsWith('file:') ? dbName : "".concat(process.cwd(), "/").concat(dbName);
 
   if (-1 === path.indexOf('.db')) {
     if (0 <= path.indexOf('?')) {
