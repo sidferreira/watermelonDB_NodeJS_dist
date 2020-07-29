@@ -69,7 +69,7 @@ function () {
 
   _proto.batch = function batch(...records) {
     return new Promise(function ($return, $error) {
-      var _this, actualRecords, batchOperations, changeNotifications, affectedTables;
+      var _this, actualRecords, batchOperations, changeNotifications, affectedTables, databaseChangeNotifySubscribers;
 
       _this = this;
 
@@ -145,13 +145,15 @@ function () {
           });
           affectedTables = Object.keys(changeNotifications);
 
-          this._subscribers.forEach(function ([tables, subscriber]) {
+          databaseChangeNotifySubscribers = function ([tables, subscriber]) {
             if (tables.some(function (table) {
               return affectedTables.includes(table);
             })) {
               subscriber();
             }
-          });
+          };
+
+          this._subscribers.forEach(databaseChangeNotifySubscribers);
 
           return $return(undefined); // shuts up flow
         } catch ($boundEx) {
@@ -168,6 +170,20 @@ function () {
   ;
 
   _proto.action = function action(work, description) {
+    return this._actionQueue.enqueue(work, description);
+  }
+  /* EXPERIMENTAL API - DO NOT USE */
+  ;
+
+  _proto._write = function _write(work, description) {
+    return this._actionQueue.enqueue(work, description);
+  };
+
+  _proto._read = function _read(work, description) {
+    return this._actionQueue.enqueue(work, description);
+  };
+
+  _proto._together = function _together(work, description) {
     return this._actionQueue.enqueue(work, description);
   } // Emits a signal immediately, and on change in any of the passed tables
   ;

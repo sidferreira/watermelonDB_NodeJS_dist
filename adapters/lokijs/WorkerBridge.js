@@ -61,7 +61,8 @@ function () {
 
   var _proto = WorkerBridge.prototype;
 
-  _proto.send = function send(type, payload = [], callback, cloneMethod = 'deep') {
+  _proto.send = function send(type, payload = [], callback, // NOTE: This are used when not using web workers (otherwise, the data naturally is just copied)
+  cloneMethod, returnCloneMethod) {
     var id = nextActionId();
 
     this._pendingActions.push({
@@ -73,7 +74,8 @@ function () {
       id: id,
       type: type,
       payload: payload,
-      cloneMethod: cloneMethod
+      cloneMethod: cloneMethod,
+      returnCloneMethod: returnCloneMethod
     });
   };
 

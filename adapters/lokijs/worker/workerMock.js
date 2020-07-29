@@ -6,8 +6,6 @@ Object.defineProperty(exports, "__esModule", {
 exports.shallowCloneDeepObjects = shallowCloneDeepObjects;
 exports.default = void 0;
 
-var _lodash = _interopRequireDefault(require("lodash.clonedeep"));
-
 var _lokiWorker = _interopRequireDefault(require("./lokiWorker"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
@@ -27,6 +25,22 @@ function shallowCloneDeepObjects(value) {
   }
 
   return value;
+}
+
+function clone(data) {
+  // TODO: Even better, it would be great if we had zero-copy architecture (COW RawRecords?) and we didn't have to clone
+  var method = data.cloneMethod;
+
+  if ('shallowCloneDeepObjects' === method) {
+    var clonedData = data;
+    clonedData.payload = shallowCloneDeepObjects(clonedData.payload);
+    return clonedData;
+  } else if ('immutable' === method) {
+    // we get a pinky promise that the payload is immutable so we don't need to copy
+    return data;
+  }
+
+  throw new Error('Unknown data.clone method for workerMock');
 } // Simulates the web worker API
 
 
@@ -41,9 +55,11 @@ function () {
     // $FlowFixMe
     this._workerContext = {
       postMessage: function postMessage(data) {
-        _this.onmessage({
-          data: (0, _lodash.default)(data)
-        });
+        var message = {
+          data: clone(data)
+        };
+
+        _this.onmessage(message);
       },
       onmessage: function onmessage() {}
     }; // $FlowFixMe
@@ -54,24 +70,11 @@ function () {
   var _proto = LokiWorkerMock.prototype;
 
   _proto.postMessage = function postMessage(data) {
-    // TODO: Get rid of lodash.clonedeep - it's a very slow cloning method. I used it because
-    // there some crashes when using alternatives… find those edge cases and fix them…
-    // TODO: Even better, it would be great if we had zero-copy architecture (COW RawRecords?) and we didn't have to clone
-    var clonedData;
+    var message = {
+      data: clone(data)
+    };
 
-    if ('shallowCloneDeepObjects' === data.cloneMethod) {
-      clonedData = data;
-      clonedData.payload = shallowCloneDeepObjects(clonedData.payload);
-    } else if ('immutable' === data.cloneMethod) {
-      // we got a promise that the payload is immutable so we don't need to copy
-      clonedData = data;
-    } else {
-      clonedData = (0, _lodash.default)(data);
-    }
-
-    this._workerContext.onmessage({
-      data: clonedData
-    });
+    this._workerContext.onmessage(message);
   };
 
   return LokiWorkerMock;

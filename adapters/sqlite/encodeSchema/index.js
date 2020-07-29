@@ -40,14 +40,20 @@ var encodeTableIndicies = function ({
   }).concat(["create index \"".concat(tableName, "__status\" on ").concat((0, _encodeName.default)(tableName), " (\"_status\");")]).join('');
 };
 
+var transform = function (sql, transformer) {
+  return transformer ? transformer(sql) : sql;
+};
+
 var encodeTable = function (table) {
-  return encodeCreateTable(table) + encodeTableIndicies(table);
+  return transform(encodeCreateTable(table) + encodeTableIndicies(table), table.unsafeSql);
 };
 
 var encodeSchema = function ({
-  tables: tables
+  tables: tables,
+  unsafeSql: unsafeSql
 }) {
-  return (0, _rambdax.values)(tables).map(encodeTable).join('');
+  var sql = (0, _rambdax.values)(tables).map(encodeTable).join('');
+  return transform(sql, unsafeSql);
 };
 
 exports.encodeSchema = encodeSchema;
@@ -60,13 +66,14 @@ var encodeCreateTableMigrationStep = function ({
 
 var encodeAddColumnsMigrationStep = function ({
   table: table,
-  columns: columns
+  columns: columns,
+  unsafeSql: unsafeSql
 }) {
   return columns.map(function (column) {
     var addColumn = "alter table ".concat((0, _encodeName.default)(table), " add ").concat((0, _encodeName.default)(column.name), ";");
     var setDefaultValue = "update ".concat((0, _encodeName.default)(table), " set ").concat((0, _encodeName.default)(column.name), " = ").concat((0, _encodeValue.default)((0, _RawRecord.nullValue)(column)), ";");
     var addIndex = encodeIndex(column, table);
-    return addColumn + setDefaultValue + addIndex;
+    return transform(addColumn + setDefaultValue + addIndex, unsafeSql);
   }).join('');
 };
 
@@ -76,6 +83,8 @@ var encodeMigrationSteps = function (steps) {
       return encodeCreateTableMigrationStep(step);
     } else if ('add_columns' === step.type) {
       return encodeAddColumnsMigrationStep(step);
+    } else if ('sql' === step.type) {
+      return step.sql;
     }
 
     throw new Error("Unsupported migration step ".concat(step.type));

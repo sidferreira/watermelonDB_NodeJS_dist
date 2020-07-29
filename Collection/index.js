@@ -5,11 +5,9 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = void 0;
 
+var _Observable = require("rxjs/Observable");
+
 var _Subject = require("rxjs/Subject");
-
-var _defer = require("rxjs/observable/defer");
-
-var _operators = require("rxjs/operators");
 
 var _invariant = _interopRequireDefault(require("../utils/common/invariant"));
 
@@ -54,11 +52,7 @@ function () {
     return new Promise(function ($return) {
       var _this2 = this;
 
-      (0, _invariant.default)('string' === typeof id, "Invalid record ID ".concat(this.table, "#").concat(id));
-
-      var cachedRecord = this._cache.get(id);
-
-      return $return(cachedRecord || (0, _Result.toPromise)(function (callback) {
+      return $return((0, _Result.toPromise)(function (callback) {
         return _this2._fetchRecord(id, callback);
       }));
     }.bind(this));
@@ -69,11 +63,29 @@ function () {
   _proto.findAndObserve = function findAndObserve(id) {
     var _this3 = this;
 
-    return (0, _defer.defer)(function () {
-      return _this3.find(id);
-    }).pipe((0, _operators.switchMap)(function (model) {
-      return model.observe();
-    }));
+    return _Observable.Observable.create(function (observer) {
+      var unsubscribe = null;
+      var unsubscribed = false;
+
+      _this3._fetchRecord(id, function (result) {
+        if (result.value) {
+          var record = result.value;
+          observer.next(record);
+          unsubscribe = record.experimentalSubscribe(function (isDeleted) {
+            if (!unsubscribed) {
+              isDeleted ? observer.complete() : observer.next(record);
+            }
+          });
+        } else {
+          observer.error(result.error);
+        }
+      });
+
+      return function () {
+        unsubscribed = true;
+        unsubscribe && unsubscribe();
+      };
+    });
   } // Query records of this type
   ;
 
@@ -158,6 +170,22 @@ function () {
   _proto._fetchRecord = function _fetchRecord(id, callback) {
     var _this5 = this;
 
+    if ('string' !== typeof id) {
+      callback({
+        error: new Error("Invalid record ID ".concat(this.table, "#").concat(id))
+      });
+      return;
+    }
+
+    var cachedRecord = this._cache.get(id);
+
+    if (cachedRecord) {
+      callback({
+        value: cachedRecord
+      });
+      return;
+    }
+
     this.database.adapter.underlyingAdapter.find(this.table, id, function (result) {
       return callback((0, _Result.mapValue)(function (rawRecord) {
         (0, _invariant.default)(rawRecord, "Record ".concat(_this5.table, "#").concat(id, " not found"));
@@ -184,12 +212,12 @@ function () {
   };
 
   _proto._notify = function _notify(operations) {
-    this._subscribers.forEach(function ([subscriber]) {
+    this._subscribers.forEach(function collectionChangeNotifySubscribers([subscriber]) {
       subscriber(operations);
     });
 
     this.changes.next(operations);
-    operations.forEach(function ({
+    operations.forEach(function collectionChangeNotifyModels({
       record: record,
       type: type
     }) {

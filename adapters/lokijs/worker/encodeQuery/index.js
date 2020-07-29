@@ -5,102 +5,161 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = encodeQuery;
 
-var _rambdax = require("rambdax");
-
-var _identical = _interopRequireDefault(require("../../../../utils/fp/identical"));
-
-var _objOf = _interopRequireDefault(require("../../../../utils/fp/objOf"));
-
-var _cond = _interopRequireDefault(require("../../../../utils/fp/cond"));
-
 var _invariant = _interopRequireDefault(require("../../../../utils/common/invariant"));
 
 var _likeToRegexp = _interopRequireDefault(require("../../../../utils/fp/likeToRegexp"));
 
-var _Schema = require("../../../../Schema");
-
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 /* eslint-disable no-use-before-define */
-var getComparisonRight = (0, _cond.default)([[(0, _rambdax.has)('value'), (0, _rambdax.prop)('value')], [(0, _rambdax.has)('values'), (0, _rambdax.prop)('values')], [(0, _rambdax.has)('column'), (0, _rambdax.prop)('column')]]); // TODO: It's probably possible to improve performance of those operators by making them
-// binary-search compatible (i.e. don't use $and, $not)
-// TODO: We might be able to use $jgt, $jbetween, etc. — but ensure the semantics are right
-// and it won't break indexing
+// don't import whole `utils` to keep worker size small
+var weakNotNull = {
+  $not: {
+    $aeq: null
+  }
+};
 
-var weakNotEqual = function (value) {
-  return {
-    $not: {
-      $aeq: value
+var encodeComparison = function (comparison, value) {
+  // TODO: It's probably possible to improve performance of those operators by making them
+  // binary-search compatible (i.e. don't use $and, $not)
+  // TODO: We might be able to use $jgt, $jbetween, etc. — but ensure the semantics are right
+  // and it won't break indexing
+  var {
+    operator: operator
+  } = comparison;
+
+  if (comparison.right.column) {
+    // Encode for column comparisons
+    switch (operator) {
+      case 'eq':
+        return {
+          $$aeq: value
+        };
+
+      case 'notEq':
+        return {
+          $not: {
+            $$aeq: value
+          }
+        };
+
+      case 'gt':
+        return {
+          $$gt: value
+        };
+
+      case 'gte':
+        return {
+          $$gte: value
+        };
+
+      case 'weakGt':
+        return {
+          $$gt: value
+        };
+
+      case 'lt':
+        return {
+          $and: [{
+            $$lt: value
+          }, weakNotNull]
+        };
+
+      case 'lte':
+        return {
+          $and: [{
+            $$lte: value
+          }, weakNotNull]
+        };
+
+      default:
+        throw new Error("Illegal operator ".concat(operator, " for column comparisons"));
     }
-  };
-};
+  } else {
+    switch (operator) {
+      case 'eq':
+        return {
+          $aeq: value
+        };
 
-var noNullComparisons = function (operator) {
-  return function (value) {
-    return {
-      $and: [operator(value), weakNotEqual(null)]
-    };
-  };
-};
+      case 'notEq':
+        return {
+          $not: {
+            $aeq: value
+          }
+        };
 
-var like = function (value) {
-  if ('string' === typeof value) {
-    return {
-      $regex: (0, _likeToRegexp.default)(value)
-    };
-  }
+      case 'gt':
+        return {
+          $gt: value
+        };
 
-  return {};
-};
+      case 'gte':
+        return {
+          $gte: value
+        };
 
-var notLike = function (value) {
-  if ('string' === typeof value) {
-    return {
-      $and: [{
-        $not: {
-          $eq: null
-        }
-      }, {
-        $not: {
+      case 'weakGt':
+        return {
+          $gt: value
+        };
+      // Note: yup, this is correct (for non-column comparisons)
+
+      case 'lt':
+        return {
+          $and: [{
+            $lt: value
+          }, weakNotNull]
+        };
+
+      case 'lte':
+        return {
+          $and: [{
+            $lte: value
+          }, weakNotNull]
+        };
+
+      case 'oneOf':
+        return {
+          $in: value
+        };
+
+      case 'notIn':
+        return {
+          $and: [{
+            $nin: value
+          }, weakNotNull]
+        };
+
+      case 'between':
+        return {
+          $between: value
+        };
+
+      case 'like':
+        return {
           $regex: (0, _likeToRegexp.default)(value)
-        }
-      }]
-    };
+        };
+
+      case 'notLike':
+        return {
+          $and: [{
+            $not: {
+              $eq: null
+            }
+          }, {
+            $not: {
+              $regex: (0, _likeToRegexp.default)(value)
+            }
+          }]
+        };
+
+      default:
+        throw new Error("Unknown operator ".concat(operator));
+    }
   }
-
-  return {};
 };
 
-var operators = {
-  eq: (0, _objOf.default)('$aeq'),
-  notEq: weakNotEqual,
-  gt: (0, _objOf.default)('$gt'),
-  gte: (0, _objOf.default)('$gte'),
-  weakGt: (0, _objOf.default)('$gt'),
-  // Note: yup, this is correct (for non-column comparisons)
-  lt: noNullComparisons((0, _objOf.default)('$lt')),
-  lte: noNullComparisons((0, _objOf.default)('$lte')),
-  oneOf: (0, _objOf.default)('$in'),
-  notIn: noNullComparisons((0, _objOf.default)('$nin')),
-  between: (0, _objOf.default)('$between'),
-  like: like,
-  notLike: notLike
-};
-var operatorsColumnComparison = {
-  eq: (0, _objOf.default)('$$aeq'),
-  notEq: function notEq(value) {
-    return {
-      $not: {
-        $$aeq: value
-      }
-    };
-  },
-  gt: (0, _objOf.default)('$$gt'),
-  gte: (0, _objOf.default)('$$gte'),
-  weakGt: (0, _objOf.default)('$$gt'),
-  lt: noNullComparisons((0, _objOf.default)('$$lt')),
-  lte: noNullComparisons((0, _objOf.default)('$$lte'))
-};
 var columnCompRequiresColumnNotNull = {
   gt: true,
   gte: true,
@@ -110,37 +169,47 @@ var columnCompRequiresColumnNotNull = {
 
 var encodeWhereDescription = function ({
   left: left,
-  comparison: {
+  comparison: comparison
+}) {
+  var _ref5;
+
+  var {
     operator: operator,
     right: right
-  }
-}) {
-  var comparisonRight = getComparisonRight(right);
+  } = comparison;
+  var col = left; // $FlowFixMe - NOTE: order of ||s is important here, since .value can be falsy, but .column and .values are either truthy or are undefined
+
+  var comparisonRight = right.column || right.values || right.value;
 
   if ('string' === typeof right.value) {
     // we can do fast path as we know that eq and aeq do the same thing for strings
     if ('eq' === operator) {
-      return (0, _objOf.default)(left, {
+      var _ref;
+
+      return _ref = {}, _ref[col] = {
         $eq: comparisonRight
-      });
+      }, _ref;
     } else if ('notEq' === operator) {
-      return (0, _objOf.default)(left, {
+      var _ref2;
+
+      return _ref2 = {}, _ref2[col] = {
         $ne: comparisonRight
-      });
+      }, _ref2;
     }
   }
 
   var colName = right.column;
-  var opFn = colName ? operatorsColumnComparison[operator] : operators[operator];
-  var comparison = opFn(comparisonRight);
+  var encodedComparison = encodeComparison(comparison, comparisonRight);
 
   if (colName && columnCompRequiresColumnNotNull[operator]) {
+    var _ref3, _ref4;
+
     return {
-      $and: [(0, _objOf.default)(left, comparison), (0, _objOf.default)(colName, weakNotEqual(null))]
+      $and: [(_ref3 = {}, _ref3[col] = encodedComparison, _ref3), (_ref4 = {}, _ref4[colName] = weakNotNull, _ref4)]
     };
   }
 
-  return (0, _objOf.default)(left, comparison);
+  return _ref5 = {}, _ref5[col] = encodedComparison, _ref5;
 };
 
 var encodeCondition = function (associations) {
@@ -167,39 +236,42 @@ var encodeCondition = function (associations) {
   };
 };
 
-var encodeConditions = function (associations) {
-  return function (conditions) {
-    return conditions.map(encodeCondition(associations));
-  };
+var encodeConditions = function (associations, conditions) {
+  return conditions.map(encodeCondition(associations));
 };
 
 var encodeAndOr = function (op) {
   return function (associations, clause) {
-    var _ref;
+    var _ref6;
 
-    var conditions = encodeConditions(associations)(clause.conditions); // flatten
+    var conditions = encodeConditions(associations, clause.conditions); // flatten
 
-    return 1 === conditions.length ? conditions[0] : (_ref = {}, _ref[op] = conditions, _ref);
+    return 1 === conditions.length ? conditions[0] : (_ref6 = {}, _ref6[op] = conditions, _ref6);
   };
 };
 
 var encodeAnd = encodeAndOr('$and');
-var encodeOr = encodeAndOr('$or');
-
-var lengthEq = function (n) {
-  return (0, _rambdax.pipe)(_rambdax.length, (0, _identical.default)(n));
-}; // Note: empty query returns `undefined` because
+var encodeOr = encodeAndOr('$or'); // Note: empty query returns `undefined` because
 // Loki's Collection.count() works but count({}) doesn't
 
+var concatRawQueries = function (queries) {
+  switch (queries.length) {
+    case 0:
+      return undefined;
 
-var concatRawQueries = (0, _cond.default)([[lengthEq(0), (0, _rambdax.always)(undefined)], [lengthEq(1), _rambdax.head], [_rambdax.T, (0, _objOf.default)('$and')]]);
+    case 1:
+      return queries[0];
 
-var encodeRootConditions = function (associations) {
-  return (0, _rambdax.pipe)(encodeConditions(associations), concatRawQueries);
+    default:
+      return {
+        $and: queries
+      };
+  }
 };
 
-var encodeMapKey = (0, _rambdax.ifElse)((0, _rambdax.propEq)('type', 'belongs_to'), (0, _rambdax.always)((0, _Schema.columnName)('id')), (0, _rambdax.prop)('foreignKey'));
-var encodeJoinKey = (0, _rambdax.ifElse)((0, _rambdax.propEq)('type', 'belongs_to'), (0, _rambdax.prop)('key'), (0, _rambdax.always)((0, _Schema.columnName)('id')));
+var encodeRootConditions = function (associations, conditions) {
+  return concatRawQueries(encodeConditions(associations, conditions));
+};
 
 var encodeJoin = function (associations, on) {
   var {
@@ -212,12 +284,15 @@ var encodeJoin = function (associations, on) {
     return table === to;
   });
   (0, _invariant.default)(association, 'To nest Q.on inside Q.and/Q.or you must explicitly declare Q.experimentalJoinTables at the beginning of the query');
+  var {
+    info: info
+  } = association;
   return {
     $join: {
       table: table,
-      query: encodeRootConditions(associations)(conditions),
-      mapKey: encodeMapKey(association.info),
-      joinKey: encodeJoinKey(association.info)
+      query: encodeRootConditions(associations, conditions),
+      mapKey: 'belongs_to' === info.type ? 'id' : info.foreignKey,
+      joinKey: 'belongs_to' === info.type ? info.key : 'id'
     }
   };
 };
@@ -238,7 +313,7 @@ function encodeQuery(query) {
   (0, _invariant.default)(!take, '[WatermelonDB][Loki] Q.take() not yet supported');
   return {
     table: table,
-    query: encodeRootConditions(associations)(where),
+    query: encodeRootConditions(associations, where),
     hasJoins: !!joinTables.length
   };
 }

@@ -102,6 +102,18 @@ function () {
     }
   };
 
+  _proto.getCache = function getCache(table) {
+    var cache = this.cachedRecords.get(table);
+
+    if (cache) {
+      return cache;
+    }
+
+    var newCache = new Set([]);
+    this.cachedRecords.set(table, newCache);
+    return newCache;
+  };
+
   _proto.find = function find(table, id) {
     if (this.isCached(table, id)) {
       return id;
@@ -182,8 +194,10 @@ function () {
 
       _this.loki.getCollection(table).insert(raws, shouldRebuildIndexAfterIndex);
 
+      var cache = _this.getCache(table);
+
       raws.forEach(function (raw) {
-        _this.markAsCached(table, raw.id);
+        cache.add(raw.id);
       });
     });
     operations.forEach(function (operation) {
@@ -462,7 +476,7 @@ function () {
           _this3._executeCreateTableMigration(step);
         } else if ('add_columns' === step.type) {
           _this3._executeAddColumnsMigration(step);
-        } else {
+        } else if (!('sql' === step.type)) {
           throw new Error("Unsupported migration step ".concat(step.type));
         }
       }); // Set database version
@@ -504,17 +518,17 @@ function () {
   _proto._compactQueryResults = function _compactQueryResults(records, table) {
     var _this4 = this;
 
+    var cache = this.getCache(table);
     return records.map(function (raw) {
       var {
         id: id
       } = raw;
 
-      if (_this4.isCached(table, id)) {
+      if (cache.has(id)) {
         return id;
       }
 
-      _this4.markAsCached(table, id);
-
+      cache.add(id);
       return (0, _RawRecord.sanitizedRaw)(raw, _this4.schema.tables[table]);
     });
   };

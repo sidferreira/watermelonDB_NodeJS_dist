@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.schemaMigrations = schemaMigrations;
 exports.createTable = createTable;
 exports.addColumns = addColumns;
+exports.unsafeExecuteSql = unsafeExecuteSql;
 
 var _rambdax = require("rambdax");
 
@@ -115,7 +116,8 @@ function createTable(tableSchemaSpec) {
 
 function addColumns({
   table: table,
-  columns: columns
+  columns: columns,
+  unsafeSql: unsafeSql
 }) {
   if ('production' !== process.env.NODE_ENV) {
     (0, _common.invariant)(table, "Missing table name in addColumn()");
@@ -128,7 +130,19 @@ function addColumns({
   return {
     type: 'add_columns',
     table: table,
-    columns: columns
+    columns: columns,
+    unsafeSql: unsafeSql
+  };
+}
+
+function unsafeExecuteSql(sql) {
+  if ('production' !== process.env.NODE_ENV) {
+    (0, _common.invariant)('string' === typeof sql, "SQL passed to unsafeExecuteSql is not a string");
+  }
+
+  return {
+    type: 'sql',
+    sql: sql
   };
 }
 /*

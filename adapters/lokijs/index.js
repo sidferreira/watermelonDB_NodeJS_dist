@@ -66,7 +66,7 @@ function () {
       (0, _common2.validateAdapter)(this);
     }
 
-    this.workerBridge.send(SETUP, [options], _common2.devSetupCallback);
+    this.workerBridge.send(SETUP, [options], _common2.devSetupCallback, 'immutable', 'immutable');
   }
 
   var _proto = LokiJSAdapter.prototype;
@@ -94,19 +94,19 @@ function () {
 
   _proto.find = function find(table, id, callback) {
     (0, _common2.validateTable)(table, this.schema);
-    this.workerBridge.send(FIND, [table, id], callback);
+    this.workerBridge.send(FIND, [table, id], callback, 'immutable', 'shallowCloneDeepObjects');
   };
 
   _proto.query = function query(_query, callback) {
     (0, _common2.validateTable)(_query.table, this.schema); // SerializedQueries are immutable, so we need no copy
 
-    this.workerBridge.send(QUERY, [_query], callback, 'immutable');
+    this.workerBridge.send(QUERY, [_query], callback, 'immutable', 'shallowCloneDeepObjects');
   };
 
   _proto.count = function count(query, callback) {
     (0, _common2.validateTable)(query.table, this.schema); // SerializedQueries are immutable, so we need no copy
 
-    this.workerBridge.send(COUNT, [query], callback, 'immutable');
+    this.workerBridge.send(COUNT, [query], callback, 'immutable', 'immutable');
   };
 
   _proto.batch = function batch(operations, callback) {
@@ -116,33 +116,33 @@ function () {
       return (0, _common2.validateTable)(table, _this.schema);
     }); // batches are only strings + raws which only have JSON-compatible values, rest is immutable
 
-    this.workerBridge.send(BATCH, [operations], callback, 'shallowCloneDeepObjects');
+    this.workerBridge.send(BATCH, [operations], callback, 'shallowCloneDeepObjects', 'immutable');
   };
 
   _proto.getDeletedRecords = function getDeletedRecords(table, callback) {
     (0, _common2.validateTable)(table, this.schema);
-    this.workerBridge.send(GET_DELETED_RECORDS, [table], callback);
+    this.workerBridge.send(GET_DELETED_RECORDS, [table], callback, 'immutable', 'immutable');
   };
 
   _proto.destroyDeletedRecords = function destroyDeletedRecords(table, recordIds, callback) {
     (0, _common2.validateTable)(table, this.schema);
-    this.workerBridge.send(DESTROY_DELETED_RECORDS, [table, recordIds], callback);
+    this.workerBridge.send(DESTROY_DELETED_RECORDS, [table, recordIds], callback, 'immutable', 'immutable');
   };
 
   _proto.unsafeResetDatabase = function unsafeResetDatabase(callback) {
-    this.workerBridge.send(UNSAFE_RESET_DATABASE, [], callback);
+    this.workerBridge.send(UNSAFE_RESET_DATABASE, [], callback, 'immutable', 'immutable');
   };
 
   _proto.getLocal = function getLocal(key, callback) {
-    this.workerBridge.send(GET_LOCAL, [key], callback);
+    this.workerBridge.send(GET_LOCAL, [key], callback, 'immutable', 'immutable');
   };
 
   _proto.setLocal = function setLocal(key, value, callback) {
-    this.workerBridge.send(SET_LOCAL, [key, value], callback);
+    this.workerBridge.send(SET_LOCAL, [key, value], callback, 'immutable', 'immutable');
   };
 
   _proto.removeLocal = function removeLocal(key, callback) {
-    this.workerBridge.send(REMOVE_LOCAL, [key], callback);
+    this.workerBridge.send(REMOVE_LOCAL, [key], callback, 'immutable', 'immutable');
   };
 
   return LokiJSAdapter;

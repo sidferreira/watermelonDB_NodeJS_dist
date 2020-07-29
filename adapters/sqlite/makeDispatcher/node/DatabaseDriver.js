@@ -223,7 +223,7 @@ var DatabaseDriver = function DatabaseDriver() {
 
           default:
             {
-              break;
+              throw new Error('unreachable');
             }
         }
       });
@@ -290,7 +290,7 @@ var DatabaseDriver = function DatabaseDriver() {
   };
 
   this.removeFromCache = function (table, id) {
-    if (_this3.cachedRecords[table] && _this3.cachedRecords[table].has(id)) {
+    if (_this3.hasCachedTable(table) && _this3.cachedRecords[table].has(id)) {
       _this3.cachedRecords[table].delete(id);
     }
   };

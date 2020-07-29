@@ -25,9 +25,13 @@ function columnName(name) {
 
 function appSchema({
   version: version,
-  tables: tableList
+  tables: tableList,
+  unsafeSql: unsafeSql
 }) {
-  'production' !== process.env.NODE_ENV && (0, _invariant.default)(0 < version, "Schema version must be greater than 0");
+  if ('production' !== process.env.NODE_ENV) {
+    (0, _invariant.default)(0 < version, "Schema version must be greater than 0");
+  }
+
   var tables = tableList.reduce(function (map, table) {
     if ('production' !== process.env.NODE_ENV) {
       (0, _invariant.default)('object' === typeof table && table.name, "Table schema must contain a name");
@@ -38,7 +42,8 @@ function appSchema({
   }, {});
   return {
     version: version,
-    tables: tables
+    tables: tables,
+    unsafeSql: unsafeSql
   };
 }
 
@@ -67,7 +72,8 @@ function validateColumnSchema(column) {
 
 function tableSchema({
   name: name,
-  columns: columnArray
+  columns: columnArray,
+  unsafeSql: unsafeSql
 }) {
   if ('production' !== process.env.NODE_ENV) {
     (0, _invariant.default)(name, "Missing table name in schema");
@@ -85,6 +91,7 @@ function tableSchema({
   return {
     name: name,
     columns: columns,
-    columnArray: columnArray
+    columnArray: columnArray,
+    unsafeSql: unsafeSql
   };
 }

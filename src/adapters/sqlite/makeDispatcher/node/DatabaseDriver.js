@@ -161,7 +161,7 @@ class DatabaseDriver {
           }
 
           default: {
-            break
+            throw new Error('unreachable')
           }
         }
       })
@@ -232,7 +232,7 @@ class DatabaseDriver {
   }
 
   removeFromCache = (table: string, id: string) => {
-    if (this.cachedRecords[table] && this.cachedRecords[table].has(id)) {
+    if (this.hasCachedTable(table) && this.cachedRecords[table].has(id)) {
       this.cachedRecords[table].delete(id)
     }
   }

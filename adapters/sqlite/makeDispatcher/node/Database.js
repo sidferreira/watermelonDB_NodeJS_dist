@@ -96,9 +96,9 @@ function () {
       // But sadly this won't work for in-memory (shared) databases, so in those cases,
       // drop all tables, indexes, and reset user version to 0
       if (_this.isInMemoryDatabase()) {
-        var results = _this.queryRaw("SELECT * FROM sqlite_master WHERE type = 'table'");
-
         _this.inTransaction(function () {
+          var results = _this.queryRaw("SELECT * FROM sqlite_master WHERE type = 'table'");
+
           var tables = results.map(function (table) {
             return table.name;
           });

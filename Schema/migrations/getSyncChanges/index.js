@@ -29,7 +29,7 @@ function getSyncChanges(migrations, fromVersion, toVersion) {
   }
 
   steps.forEach(function (step) {
-    (0, _common.invariant)(['create_table', 'add_columns'].includes(step.type), "Unknown migration step type ".concat(step.type, ". Can not perform migration sync. This most likely means your migrations are defined incorrectly. It could also be a WatermelonDB bug."));
+    (0, _common.invariant)(['create_table', 'add_columns', 'sql'].includes(step.type), "Unknown migration step type ".concat(step.type, ". Can not perform migration sync. This most likely means your migrations are defined incorrectly. It could also be a WatermelonDB bug."));
   }); // $FlowFixMe
 
   var createTableSteps = steps.filter(function (step) {
